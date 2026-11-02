@@ -15,7 +15,6 @@ hr-teachers/
 │
 ├── prototype/                     
 │   ├── prototype.ipynb            пропуски, выбросы, сборка таблицы, первые графики
-│   ├── data_clean.csv             очищенная таблица: 1 строка = 1 педагог в 1 году
 │   ├── Обработка_данных_дз_5_Движуха в кадрах.ipynb   очистка → data_clean.parquet
 │   └── build_teachers.py          сборка teachers.parquet: мобильность, нагрузка, образование, ПК/ПП
 │
