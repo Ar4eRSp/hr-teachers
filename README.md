@@ -10,12 +10,14 @@ hr-teachers/
 │   ├── Образование.xlsx           образование педагогов
 │   ├── ПК-ПП.xlsx                 повышение квалификации и переподготовка
 │   ├── Школы.xlsx                 справочник школ: округ, здания, численность учеников
-│   ├── data_clean.parquet         очищенные «Педагоги» (создаёт ноутбук дз_5)
+│   ├── data_clean.parquet         очищенные «Педагоги» (создаёт ноутбук "Предобработка и очистка")
 │   └── teachers.parquet           данные для дашборда (создаёт build_teachers.py)
 │
 ├── prototype/                     
-│   ├── prototype.ipynb            пропуски, выбросы, сборка таблицы, первые графики
-│   ├── Обработка_данных_дз_5_Движуха в кадрах.ipynb   очистка → data_clean.parquet
+│   ├── prototype.ipynb            🛠 пропуски, выбросы, сборка таблицы, первые графики
+|   ├── Предобработка и очистка.ipynb   ✅ полный цикл подготовки данных → data_clean.parquet
+|   ├── Подготовка.ipynb           🛠 кодирование и масштабирование данных для обучения. data_clean.parquet → ???
+│   ├── Обработка_данных_дз_5_Движуха в кадрах.ipynb   🛠 очистка → data_clean.parquet
 │   └── build_teachers.py          сборка teachers.parquet: мобильность, нагрузка, образование, ПК/ПП
 │
 ├── dashboard/                     ✅ веб-приложение на Dash + Plotly
@@ -41,9 +43,9 @@ hr-teachers/
 ## Как устроен поток данных
 
 ```
-data/Педагоги.xlsx → ноутбук дз_5 → data/data_clean.parquet ─┐
-data/Школы.xlsx, Образование.xlsx, ПК-ПП.xlsx ─────────────────┴→ prototype/build_teachers.py
-                                                                   → data/teachers.parquet → dashboard/app.py
+data/Педагоги.xlsx → ноутбук "Предобработка и очистка" → data/data_clean.parquet ─┐
+data/Школы.xlsx, Образование.xlsx, ПК-ПП.xlsx ────────────────────────────────────┴→ prototype/build_teachers.py
+                                                                                          → data/teachers.parquet → dashboard/app.py
 ```
 
 Пересобрать таблицу для дашборда (≈20 с):
