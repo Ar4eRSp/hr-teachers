@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from charts import MIN_GROUP, MOVE_ORDER, add_risk, subject_label
+from charts import MIN_GROUP, MOVE_ORDER, add_risk, forecast_rows, subject_label
 
 MOVED, LEFT = MOVE_ORDER
 
@@ -55,13 +55,14 @@ def mobility_kpis(part: pd.DataFrame) -> dict:
 
 def risk_kpis(part: pd.DataFrame) -> dict:
     """Прогнозные показатели - только если в данных есть вероятности модели."""
-    if part.empty or not {'prob_leave', 'prob_move'} <= set(part.columns):
+    d = add_risk(forecast_rows(part))
+    if d.empty:
         return {}
-    d = add_risk(part)
     high = d['risk_level'] == 'Высокий'
     return {'risk_high': pct(high), 'risk_high_n': int(high.sum()),
-            'prob_move': d['prob_move'].mean() * 100, 'prob_leave': d['prob_leave'].mean() * 100,
-            'prob_stay': (1 - d['prob_move'] - d['prob_leave']).mean() * 100}
+            'prob_leave': d['prob_leave'].mean() * 100,
+            'prob_remain': (1 - d['prob_leave']).mean() * 100,
+            'predicted_n': len(d), 'total_n': len(part)}
 
 
 def schools_above_city(df: pd.DataFrame, year: int, district: str | None) -> tuple[int, int]:
@@ -82,10 +83,10 @@ def district_tiles(df: pd.DataFrame, year: int) -> tuple[pd.DataFrame, float, st
 
     Возвращает (таблица district/value/delta, значение по Москве, название показателя).
     """
-    if {'prob_leave', 'prob_move'} <= set(df.columns):
-        d = add_risk(df[df['year'] == year])
+    d = add_risk(forecast_rows(df[df['year'] == year]))
+    if not d.empty:
         flag = d['risk_level'] == 'Высокий'
-        name = 'Прогнозная группа риска по округам'
+        name = 'Высокий риск ухода из системы по округам'
     else:
         y = mobility_year(df, year)
         d = df[(df['year'] == y) & df['movement_type'].notna()]

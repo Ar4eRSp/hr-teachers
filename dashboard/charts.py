@@ -33,9 +33,8 @@ MOVE_COLORS = [BLUE_MAIN, ORANGE]
 
 RISK_ORDER  = ['Высокий', 'Средний', 'Низкий']
 RISK_COLORS = [ORANGE, ORANGE_LT, BLUE_PALE]
-RISK_HIGH, RISK_MID = 0.50, 0.25   # пороги по max(prob_leave, prob_move)
-
-TABLE_COLS = ['Группа', 'Педагогов', 'P(перейдут)', 'P(уйдут)', 'Ключевой фактор']
+RISK_MID, RISK_HIGH = 0.25, 0.50
+TABLE_COLS = ['Группа', 'Педагогов', 'P(останутся в системе)', 'P(уйдут из системы)']
 
 MIN_GROUP = 5   # группы меньше не показываем: доли шумные, и это почти персональные данные
 
@@ -143,14 +142,27 @@ def with_movement(df: pd.DataFrame) -> pd.DataFrame:
     d.loc[d['year'] == d['year'].max(), 'movement_type'] = np.nan
     return d
 
+def forecast_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Только строки с доступной корректной вероятностью бинарного ухода."""
+    if 'prob_leave' not in df.columns:
+        return df.iloc[:0].copy()
+    p = pd.to_numeric(df['prob_leave'], errors='coerce')
+    valid = p.between(0, 1)
+    d = df.loc[valid].copy()
+    d['prob_leave'] = p.loc[valid].astype(float)
+    return d
+
+
 def add_risk(df: pd.DataFrame) -> pd.DataFrame:
-    """Добавляет risk_level из вероятностей прогноза (если они есть)."""
-    if 'risk_level' in df.columns or not {'prob_leave', 'prob_move'} <= set(df.columns):
+    """Бинарный риск ухода; отсутствие прогноза не является низким риском."""
+    if 'prob_leave' not in df.columns:
         return df
-    p = df[['prob_leave', 'prob_move']].max(axis=1)
+    p = pd.to_numeric(df['prob_leave'], errors='coerce')
     d = df.copy()
-    d['risk_level'] = np.select([p >= RISK_HIGH, p >= RISK_MID],
-                                ['Высокий', 'Средний'], default='Низкий')
+    d['risk_level'] = pd.Series(pd.NA, index=d.index, dtype='string')
+    valid = p.between(0, 1)
+    d.loc[valid, 'risk_level'] = np.select([p.loc[valid] >= RISK_HIGH, p.loc[valid] >= RISK_MID],
+                                         ['Высокий', 'Средний'], default='Низкий')
     return d
 
 
@@ -531,9 +543,9 @@ def fig_mobility_heatmap(df, year: int, school_num: int | None = None,
 # ---------------------------------------------------------------------------
 def fig_risk_by_school(df, year: int, district: str | None = None,
                        top_n: int = 10) -> go.Figure:
-    d = add_risk(df[df['year'] == year])
-    if 'risk_level' not in d.columns:
-        return _empty_fig('Группы риска по школам', 'Нет прогноза (prob_leave/prob_move)')
+    d = add_risk(forecast_rows(df[df['year'] == year]))
+    if d.empty:
+        return _empty_fig('Группы риска ухода по школам', 'Нет прогноза для выбранного года и группы')
     if district:
         d = d[d['district'] == district]
     tot = d.groupby('school_num')['id'].nunique()
@@ -552,7 +564,7 @@ def fig_risk_by_school(df, year: int, district: str | None = None,
                              outsidetextfont=dict(color=INK),
                              hovertemplate='%{y} · ' + r + ': %{value:.1f}%<extra></extra>'))
     fig.update_layout(barmode='stack')
-    return _style(fig, 'Группы риска по школам', 'Доля педагогов по уровню риска',
+    return _style(fig, 'Группы риска ухода по школам', 'Доля педагогов с прогнозом по уровню риска ухода',
                   legend=True, horizontal=True)
 
 
@@ -564,12 +576,14 @@ def fig_forecast_by_subject(df, year: int, school_num: int | None = None,
     d = df[(df['year'] == year) & (df['speciality'] != 'не указано')]
     if school_num is not None:
         d = d[d['school_num'] == school_num]
-    if d.empty or not {'prob_move', 'prob_leave'} <= set(d.columns):
-        return _empty_fig('Прогнозный статус по предметам', 'Нет прогноза (prob_leave/prob_move)')
-    g = d.groupby('speciality')[['prob_move', 'prob_leave']].mean() * 100
-    g = g.assign(total=g.sum(axis=1)).sort_values('total', ascending=False).head(top_n)
+    d = forecast_rows(d)
+    if d.empty:
+        return _empty_fig('Прогноз ухода по предметам', 'Нет прогноза для выбранного года и группы')
+    g = d.groupby('speciality')['prob_leave'].mean().to_frame() * 100
+    g = g.sort_values('prob_leave', ascending=False).head(top_n)
+    g['prob_remain'] = 100 - g['prob_leave']
     fig = go.Figure()
-    for col, name, color in (('prob_move', 'Перейдут в другую школу', BLUE_MAIN),
+    for col, name, color in (('prob_remain', 'Останутся в системе', BLUE_MAIN),
                              ('prob_leave', 'Уйдут из системы', ORANGE)):
         fig.add_trace(go.Bar(name=name, y=[subject_label(s) for s in g.index], x=g[col].round(1), orientation='h',
                              marker=dict(color=color, cornerradius=3),
@@ -579,7 +593,7 @@ def fig_forecast_by_subject(df, year: int, school_num: int | None = None,
                              hovertemplate='%{y} · ' + name +
                                            ': %{value:.1f}%<extra></extra>'))
     fig.update_layout(barmode='stack')
-    return _style(fig, 'Прогнозный статус по предметам', 'Ожидаемая доля педагогов, %',
+    return _style(fig, 'Прогноз ухода по предметам', 'Средние вероятности для педагогов с прогнозом, %',
                   legend=True, horizontal=True)
 
 
@@ -603,29 +617,21 @@ def fig_shap_importance(shap_df: pd.DataFrame | None, top_n: int = 12) -> go.Fig
 # ---------------------------------------------------------------------------
 # 13. Группы педагогов с наибольшим риском (таблица)
 # ---------------------------------------------------------------------------
-def agg_risk_groups(df, year: int, school_num: int | None = None, top_n: int = 8,
-                    shap_long: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Собирает строки таблицы риска: группа → метрики + ключевой фактор."""
-    d = add_risk(df[df['year'] == year])
+def agg_risk_groups(df, year: int, school_num: int | None = None, top_n: int = 8) -> pd.DataFrame:
+    """Группы по среднему бинарному риску ухода из системы."""
+    d = forecast_rows(df[df['year'] == year])
     if school_num is not None:
         d = d[d['school_num'] == school_num]
-    if not {'prob_move', 'prob_leave'} <= set(d.columns):
+    if d.empty:
         return pd.DataFrame(columns=TABLE_COLS)
     d = d[d['speciality'] != 'не указано']
     g = (d.groupby('speciality')
-          .agg(n=('id', 'nunique'), move=('prob_move', 'mean'), leave=('prob_leave', 'mean')))
-    g = g[g['n'] >= 5].sort_values(['leave', 'move'], ascending=False).head(top_n)
+          .agg(n=('id', 'nunique'), leave=('prob_leave', 'mean')))
+    g = g[g['n'] >= MIN_GROUP].sort_values('leave', ascending=False).head(top_n)
     rows = []
     for subj, r in g.iterrows():
-        factor = '—'
-        if shap_long is not None:
-            ids = d.loc[d['speciality'] == subj, ['id', 'year']]
-            key = shap_long.merge(ids, on=['id', 'year'])
-            if len(key):
-                factor = (key.assign(a=key['contribution'].abs())
-                          .groupby('feature')['a'].mean().idxmax())
-        rows.append([subj, int(r['n']), f'{r["move"] * 100:.0f}%',
-                     f'{r["leave"] * 100:.0f}%', factor])
+        rows.append([subject_label(subj), int(r['n']), f'{(1 - r["leave"]) * 100:.0f}%',
+                     f'{r["leave"] * 100:.0f}%'])
     return pd.DataFrame(rows, columns=TABLE_COLS)
 
 
@@ -636,9 +642,9 @@ def fig_risk_groups_table(groups_df: pd.DataFrame) -> go.Figure:
     fig = go.Figure(go.Table(
         header=dict(values=list(groups_df.columns), fill=dict(color=BLUE_DARK),
                     font=dict(color='white', family=FONT, size=12),
-                    align=['left', 'right', 'right', 'right', 'left'], height=30),
+                    align=['left', 'right', 'right', 'right'], height=30),
         cells=dict(values=[groups_df[c].tolist() for c in groups_df.columns],
-                   align=['left', 'right', 'right', 'right', 'left'],
+                   align=['left', 'right', 'right', 'right'],
                    fill=dict(color=['#ffffff' if i % 2 else CARD_BG for i in range(n)]),
                    font=dict(family=FONT, size=12, color=INK), height=28)))
     fig.update_layout(margin=dict(l=6, r=6, t=56, b=6))

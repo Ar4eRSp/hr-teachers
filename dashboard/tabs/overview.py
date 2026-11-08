@@ -26,8 +26,8 @@ def render(sel: Selection):
                f'первая — {cm.fmt(k["cat_first"], 0, "%")}'),
         cm.kpi(f'Ушли из системы, {my}', cm.fmt(mob.get('left'), 1, '%'),
                f'перешли — {cm.fmt(mob.get("moved"), 1, "%")}', accent='orange'),
-        cm.kpi('Группа риска (прогноз)', cm.fmt(risk.get('risk_high'), 1, '%'),
-               f'≈ {cm.fmt(risk["risk_high_n"], 0)} педагогов' if risk else 'появится с моделью'),
+        cm.kpi('Высокий риск ухода (прогноз)', cm.fmt(risk.get('risk_high'), 1, '%'),
+               f'{cm.fmt(risk["risk_high_n"], 0)} педагогов' if risk else 'нет прогноза для выбранного среза'),
     ])
     return [
         cards,

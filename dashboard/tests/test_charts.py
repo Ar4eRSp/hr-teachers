@@ -28,11 +28,9 @@ def _is_stub(fig: go.Figure) -> bool:
 
 @pytest.fixture(scope='module')
 def df_forecast():
-    """Данные с синтетическим прогнозом - пока модели нет (этап 3)."""
-    rng = np.random.default_rng(0)
+    """Фиксированные бинарные вероятности только для тестов графиков, не модель."""
     d = DF.copy()
-    p = rng.dirichlet([8, 1, 1], size=len(d))
-    d['prob_stay'], d['prob_move'], d['prob_leave'] = p.T
+    d['prob_leave'] = np.resize([0.1, 0.3, 0.6, 0.8], len(d))
     return d
 
 
