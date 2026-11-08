@@ -123,7 +123,7 @@ def _style(fig: go.Figure, title: str, subtitle: str | None = None,
 
 
 def with_movement(df: pd.DataFrame) -> pd.DataFrame:
-    """Добавляет movement_type, если его нет в данных (обычно его кладёт build_teachers.py).
+    """Добавляет movement_type, если его нет в данных (обычно его сохраняет ноутбук очистки).
 
     Исход года Y определяется по году Y+1: остался / перешёл в другую школу / ушёл из системы;
     для последнего года - неизвестен (NaN).
