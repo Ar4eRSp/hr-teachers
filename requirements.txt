@@ -4,6 +4,8 @@ pandas==3.0.6
 pyarrow==26.0.0
 catboost
 scikit-learn
+optuna
+ipywidgets
 numpy
 openpyxl
 pytest
