@@ -101,11 +101,12 @@ def test_dynamics_matches_raw_shares():
 
 
 def test_forecast_charts_stub_without_model():
-    assert _is_stub(ch.fig_risk_by_school(DF, YEAR))
-    assert _is_stub(ch.fig_forecast_by_subject(DF, YEAR))
+    df = DF.assign(prob_leave=np.nan)
+    assert _is_stub(ch.fig_risk_by_school(df, YEAR))
+    assert _is_stub(ch.fig_forecast_by_subject(df, YEAR))
     assert _is_stub(ch.fig_shap_importance(None))
     assert _is_stub(ch.fig_shap_explanation(None))
-    assert ch.agg_risk_groups(DF, YEAR).empty
+    assert ch.agg_risk_groups(df, YEAR).empty
 
 
 def test_forecast_charts_with_predictions(df_forecast):

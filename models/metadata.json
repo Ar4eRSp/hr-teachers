@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "task": "binary_leave",
+  "target": "target",
+  "positive_class": 1,
+  "features": [
+    "age",
+    "experience_age_pedagogic_clean",
+    "experience_age_other_clean",
+    "n_subjects",
+    "n_parallels",
+    "min_parallel",
+    "max_parallel",
+    "sex",
+    "class_manager",
+    "edu_higher",
+    "edu_pedagogical",
+    "edu_speciality_match",
+    "pk_recent",
+    "pk_this_year",
+    "pk_hours_3y",
+    "retraining",
+    "main_position_cat",
+    "academic_degree_cat",
+    "category_qual_cat",
+    "district",
+    "speciality"
+  ],
+  "categorical_features": [
+    "main_position_cat",
+    "academic_degree_cat",
+    "category_qual_cat",
+    "district",
+    "speciality"
+  ],
+  "classes": [
+    0,
+    1
+  ],
+  "training_years": [
+    2022
+  ],
+  "evaluation_year": 2023,
+  "evaluation_used_for_selection": true,
+  "forecast_year": 2024,
+  "evaluation_threshold": 0.392901442416018,
+  "metrics": {
+    "roc_auc": 0.7194915887936645
+  }
+}

@@ -27,7 +27,7 @@ def load_predictions(df, model_dir=MODEL_DIR):
     result = df.copy()
     result['prob_leave'] = np.nan
     directory = Path(model_dir)
-    if not (directory / 'catboost.cbm').exists() and not (directory / 'metadata.json').exists():
+    if not (directory / 'catboost_churn.cbm').exists() and not (directory / 'metadata.json').exists():
         return result, 'Прогноз недоступен: сохранённая бинарная модель ещё не подключена.'
     try:
         from catboost import CatBoostClassifier
@@ -48,7 +48,7 @@ def load_predictions(df, model_dir=MODEL_DIR):
         if df.duplicated(['id', 'year']).any():
             raise ValueError('Нужен уникальный ключ id, year')
         model = CatBoostClassifier()
-        model.load_model(str(directory / 'catboost.cbm'), format='cbm')
+        model.load_model(str(directory / 'catboost_churn.cbm'), format='cbm')
         classes = np.asarray(model.classes_).tolist()
         if len(classes) != 2 or set(classes) != {0, 1} or classes != meta['classes']:
             raise ValueError('Классы модели должны совпадать с метаданными: 0 и 1')

@@ -35,7 +35,7 @@ def native_model():
 
 
 def write_artifact(directory, model, meta=None):
-    model.save_model(str(directory / 'catboost.cbm'), format='cbm')
+    model.save_model(str(directory / 'catboost_churn.cbm'), format='cbm')
     (directory / 'metadata.json').write_text(json.dumps(metadata() if meta is None else meta), encoding='utf-8')
 
 
@@ -175,3 +175,61 @@ def test_forecast_tab_has_no_predicted_school_transition(monkeypatch):
     text = json.dumps(result, cls=PlotlyJSONEncoder, ensure_ascii=False)
     assert 'Останутся в системе' in text and 'Уйдут из системы' in text
     assert 'Вероятно перейдут' not in text and 'prob_move' not in text
+
+
+def test_project_model_matches_direct_and_saved_predictions():
+    from catboost import CatBoostClassifier
+
+    source = data.load_data()
+    got, status = data.load_predictions(source)
+    assert status is None
+    pd.testing.assert_frame_equal(got[source.columns], source)
+    mask = source['year'].eq(2024)
+    assert mask.sum() == 17933
+    assert got.loc[mask, 'prob_leave'].between(0, 1).all()
+    assert got.loc[~mask, 'prob_leave'].isna().all()
+    assert source.loc[mask, 'target'].isna().all()
+
+    model = CatBoostClassifier()
+    model.load_model(str(data.MODEL_DIR / 'catboost_churn.cbm'))
+    expected = model.predict_proba(source.loc[mask, model.feature_names_])[:, list(model.classes_).index(1)]
+    np.testing.assert_allclose(got.loc[mask, 'prob_leave'], expected, rtol=0, atol=1e-12)
+
+    saved = pd.read_parquet(data.MODEL_DIR / 'forecast_2024.parquet')
+    comparison = got.loc[mask, ['id', 'year', 'prob_leave']].merge(
+        saved[['id', 'year', 'prob_leave']], on=['id', 'year'], how='outer',
+        validate='one_to_one', indicator=True, suffixes=('_app', '_saved'))
+    assert comparison['_merge'].eq('both').all()
+    np.testing.assert_allclose(comparison['prob_leave_app'], comparison['prob_leave_saved'],
+                               rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize('missing', ['catboost_churn.cbm', 'metadata.json'])
+def test_incomplete_artifacts_keep_forecast_unavailable(tmp_path, native_model, missing):
+    write_artifact(tmp_path, native_model)
+    (tmp_path / missing).unlink()
+    got, status = data.load_predictions(frame(), tmp_path)
+    assert status and got['prob_leave'].isna().all()
+
+
+@pytest.mark.parametrize('district,school', [('Северный', None), ('Северный', 1), ('Пустой', None)])
+def test_forecast_subjects_and_groups_follow_selected_unit(district, school):
+    from tabs import Selection, forecast
+    from plotly.utils import PlotlyJSONEncoder
+
+    north = forecast_fixture()
+    south = north.assign(id=list('ghijkl'), school_num=2, district='Южный',
+                         speciality='физики', prob_leave=0.9)
+    selected = Selection(pd.concat([north, south], ignore_index=True), 2024, district, school, 'district')
+    text = json.dumps(forecast.render(selected), cls=PlotlyJSONEncoder, ensure_ascii=False)
+    assert 'Физики' not in text
+    assert ('Математики' in text) == (district != 'Пустой')
+
+
+def test_district_tiles_use_forecast_when_project_model_is_loaded():
+    table, city, name = mt.district_tiles(data.DF, 2024)
+    part = data.DF[data.DF['year'].eq(2024)]
+    assert name == 'Высокий риск ухода из системы по округам'
+    assert city == pytest.approx(part['prob_leave'].ge(0.5).mean() * 100)
+    assert set(table['district']) == set(part['district'])
+    assert table['value'].between(0, 100).all()

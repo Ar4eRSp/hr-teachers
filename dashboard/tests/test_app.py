@@ -56,7 +56,7 @@ def test_mobility_kpis_sum_to_100():
 
 
 def test_district_tiles_without_model_show_actual_outflow():
-    table, city, name = mt.district_tiles(DF, YEAR)
+    table, city, name = mt.district_tiles(DF.assign(prob_leave=float('nan')), YEAR)
     assert 'Фактический отток' in name and len(table) == DF['district'].nunique()
     assert table['delta'].abs().max() < 20 and 0 < city < 100
 
