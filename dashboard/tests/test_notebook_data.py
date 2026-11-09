@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-notebook = json.loads((ROOT / 'prototype/Предобработка и очистка.ipynb').read_text(encoding='utf-8'))
+notebook = json.loads((ROOT / 'notebooks/Предобработка и очистка.ipynb').read_text(encoding='utf-8'))
 source = next(''.join(c['source']) for c in notebook['cells']
               if 'dataset-functions' in c.get('metadata', {}).get('tags', []))
 functions = {}
