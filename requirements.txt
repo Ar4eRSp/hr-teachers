@@ -2,6 +2,8 @@ dash==4.4.1
 plotly==7.1.0
 pandas==3.0.6
 pyarrow==26.0.0
+catboost
+scikit-learn
 numpy
 openpyxl
 pytest
