@@ -18,7 +18,7 @@ def education(year=2022, done=2022, known=True):
         'id': ['a'], 'year': [year], 'type_education': ['Дополнительное образование'],
         'qualification': ['не указано'], 'specialization_edu': ['не указано'],
         'has_specialization': [False], 'has_qualification': [False],
-        'date_pass': [done], 'date_known': [known],
+        'date_pass': [done], 'date_known': [known], 'Дата исправлена': [False],
     })
 
 
@@ -43,6 +43,36 @@ def test_imputed_date_is_not_evidence_of_recent_course():
     got = functions['add_profdev'](pd.DataFrame({'id': ['a'], 'year': [2022]}),
                                   education(known=False), courses())
     assert got['pk_recent'].tolist() == [0]
+
+
+def test_corrected_invalid_date_is_not_evidence_of_recent_course():
+    edu = education()
+    edu['Дата исправлена'] = True
+    got = functions['add_profdev'](pd.DataFrame({'id': ['a'], 'year': [2022]}), edu, courses())
+    assert got['pk_recent'].tolist() == [0]
+
+
+def test_known_date_is_kept_when_age_based_check_was_unavailable():
+    edu = education()
+    edu['Дата исправлена'] = pd.Series([pd.NA], dtype='boolean')
+    got = functions['add_profdev'](pd.DataFrame({'id': ['a'], 'year': [2022]}), edu, courses())
+    assert got['pk_recent'].tolist() == [1]
+
+
+def test_conflicting_experience_is_unknown_and_raw_values_are_preserved():
+    source = next(''.join(c['source']) for c in notebook['cells']
+                  if 'clean-experience' in c.get('metadata', {}).get('tags', []))
+    frame = pd.DataFrame({'id': ['a', 'b'], 'year': [2022, 2022], 'age': [40, 40],
+                          'experience_age_all': [5, 20], 'experience_age_pedagogic': [10, 15],
+                          'experience_age_other': [-5, 5]})
+    namespace = {**functions, 'df_clean': frame.copy()}
+    exec(compile(source, 'clean experience', 'exec'), namespace)
+    result = namespace['df_clean']
+    assert result['experience_valid'].tolist() == [False, True]
+    columns = ['experience_age_all_clean', 'experience_age_pedagogic_clean', 'experience_age_other_clean']
+    assert result.loc[0, columns].isna().all()
+    assert result.loc[1, columns].tolist() == [20, 15, 5]
+    pd.testing.assert_frame_equal(result[frame.columns], frame)
 
 
 def test_distinct_courses_are_added_in_full():

@@ -139,10 +139,11 @@ def show_active(*extra):
 def export_csv(_, year, district, school, role, *extra):
     sel = _selection(year, district, school, role, extra)
     my = mt.mobility_year(sel.df, sel.year)
-    table = mt.school_summary(sel.unit, Selection(sel.df, my, district, sel.school, role).unit)
+    table = mt.school_summary(sel.unit, Selection(sel.df, my, district, sel.school, role).unit,
+                              sel.year, my)
     name = sel.unit_name.replace(' № ', '_').replace(' ', '_')
-    return dcc.send_data_frame(table.to_csv, f'schools_{name}_{sel.year}.csv',
-                               index=False, encoding='utf-8-sig', sep=';')
+    return dcc.send_string('\ufeff' + table.to_csv(index=False, sep=';'),
+                           f'schools_{name}_{sel.year}.csv')
 
 
 if __name__ == '__main__':

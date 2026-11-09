@@ -33,6 +33,14 @@ def test_flags_are_binary():
     assert DF['edu_speciality_match'].dropna().isin([0, 1]).all()
 
 
+def test_experience_quality_flag_matches_known_values():
+    columns = ['experience_age_all_clean', 'experience_age_pedagogic_clean', 'experience_age_other_clean']
+    valid = DF['experience_valid']
+    assert DF.loc[~valid, columns].isna().all().all()
+    assert DF.loc[valid, columns].notna().all().all()
+    assert (DF.loc[valid, 'experience_age_all_clean'] >= DF.loc[valid, 'experience_age_pedagogic_clean']).all()
+
+
 def test_mobility_unknown_only_for_last_year():
     last = DF['year'] == YEARS[-1]
     assert DF.loc[last, 'mobility_status'].isna().all()

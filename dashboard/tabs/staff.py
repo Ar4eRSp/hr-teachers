@@ -50,6 +50,10 @@ def render(sel: Selection):
     args = (sel.df, sel.year, sel.school, sel.district)
     hint = [] if (sel.school is not None or sel.district) else [
         cm.note('Выберите округ или школу, чтобы сравнить их с Москвой.')]
+    missing = int(sel.unit['experience_age_pedagogic_clean'].isna().sum())
+    if missing:
+        hint.append(cm.note(f'Стаж не определён у {missing} из {len(sel.unit)} педагогов. '
+                            'Медианы и распределение стажа рассчитаны по известным значениям.'))
     cards = _compare_kpis(sel)
     return hint + [
         html.Div([

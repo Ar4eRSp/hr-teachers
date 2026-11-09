@@ -65,7 +65,8 @@ def apply_filters(df: pd.DataFrame, values: dict, school: int | None = None) -> 
     if v['f-sex'] != ALL:
         m &= df['sex'] == int(v['f-sex'])
     m &= df['age'].between(*v['f-age'])
-    m &= df['experience_age_pedagogic_clean'].between(*v['f-exp'])
+    if list(v['f-exp']) != list(EXP_RANGE):
+        m &= df['experience_age_pedagogic_clean'].between(*v['f-exp'])
     if v['f-category']:
         m &= df['category_qual_cat'].isin(v['f-category'])
     if v['f-degree'] != ALL:
@@ -169,8 +170,9 @@ def sidebar():
         ]),
         _group('Качество данных', [
             dcc.Checklist(id='f-staff', value=EXTRA_DEFAULTS['f-staff'], className='check',
-                          options=[{'label': ' Только школы с полным штатом', 'value': 'complete'}]),
-            html.P('76 школ выгружены частично (медиана — 5 педагогов): их доли шумные.',
+                          options=[{'label': ' Только условно полные выгрузки школ', 'value': 'complete'}]),
+            html.P('Полнота оценена по соотношению учеников и педагогов. '
+                   'Выбранная школа сохраняется в сравнении. Все показатели учитывают фильтры.',
                    className='hint'),
         ]),
     ], className='sidebar')

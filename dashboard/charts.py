@@ -65,10 +65,6 @@ def _unit(df: pd.DataFrame, year: int, school_num: int | None = None,
     return city.iloc[0:0], city, None
 
 
-def _unit_noun(label: str | None) -> str:
-    return 'школа' if label == 'Школа' else 'округ'
-
-
 def _outflow_share(part: pd.DataFrame) -> float:
     """Доля перешедших + ушедших, % (только строки с известным исходом)."""
     known = part[part['movement_type'].notna()]
@@ -307,7 +303,7 @@ def _gap_metrics(sch: pd.DataFrame, city: pd.DataFrame):
 def fig_gaps_vs_moscow(df, year: int, school_num: int | None = None,
                        district: str | None = None) -> go.Figure:
     sch, city, label = _unit(df, year, school_num, district)
-    title = f'Где {_unit_noun(label)} отстаёт от Москвы'
+    title = 'Отклонения от среднего по городу'
     if label is None:
         return _empty_fig(title, 'Выберите округ или школу')
     if sch.empty:
@@ -319,11 +315,11 @@ def fig_gaps_vs_moscow(df, year: int, school_num: int | None = None,
     texts = [f'{v:+.1f}'.replace('-', '−').replace('.', ',') + ' п.п.' for v in devs]
     # длина полосы - модуль отклонения, знак - в подписи (как в макете)
     fig = go.Figure(go.Bar(y=labels, x=[round(abs(v), 1) for v in devs], orientation='h',
-                           marker=dict(color=ORANGE, cornerradius=3),
+                           marker=dict(color=BLUE_MAIN, cornerradius=3),
                            text=texts, textposition='outside', cliponaxis=False,
                            outsidetextfont=dict(color=INK),
                            hovertemplate='%{y}: %{text}<extra></extra>'))
-    fig = _style(fig, title, 'Отклонение от среднего по городу, п.п. · по убыванию',
+    fig = _style(fig, title, 'Разность, п.п. · знак не означает оценку качества',
                  horizontal=True)
     fig.update_layout(margin=dict(r=70))
     return fig
@@ -360,6 +356,9 @@ def fig_experience_vs_moscow(df, year: int, school_num: int | None = None,
     sch, city, label = _unit(df, year, school_num, district)
     if label is not None and sch.empty:
         return _empty_fig('Педагогический стаж')
+    if (not city['experience_age_pedagogic_clean'].notna().any()
+            or (label is not None and not sch['experience_age_pedagogic_clean'].notna().any())):
+        return _empty_fig('Педагогический стаж', 'Нет достоверных значений стажа для этой группы')
     groups = ([(label, sch, BLUE_MAIN)] if label else []) + [('Москва', city, BLUE_PALE)]
     fig = go.Figure()
     for name, sub, col in groups:
@@ -369,7 +368,8 @@ def fig_experience_vs_moscow(df, year: int, school_num: int | None = None,
                              marker=dict(color=col, cornerradius=3),
                              hovertemplate=name + ' · %{x}: %{value:.1f}%<extra></extra>'))
     fig.update_layout(barmode='group')
-    return _style(fig, 'Педагогический стаж', 'Доля педагогов, % по группам стажа', legend=True)
+    return _style(fig, 'Педагогический стаж',
+                  'Доля педагогов с известным стажем, %', legend=True)
 
 
 # ---------------------------------------------------------------------------
@@ -549,14 +549,17 @@ def fig_risk_by_school(df, year: int, district: str | None = None,
     if district:
         d = d[d['district'] == district]
     tot = d.groupby('school_num')['id'].nunique()
+    tot = tot[tot >= MIN_GROUP]
+    if tot.empty:
+        return _empty_fig('Группы риска ухода по школам', f'Нет групп от {MIN_GROUP} педагогов')
     seg = (d.groupby(['school_num', 'risk_level'])['id'].nunique()
            .unstack(fill_value=0).reindex(columns=RISK_ORDER, fill_value=0))
-    share = seg.div(tot, axis=0) * 100
+    share = seg.reindex(tot.index).div(tot, axis=0) * 100
     order = share['Высокий'].sort_values(ascending=False).head(top_n).index
     share = share.loc[order]
     fig = go.Figure()
     for r, col in zip(RISK_ORDER, RISK_COLORS):
-        fig.add_trace(go.Bar(name=r, y=[_school_label(s) for s in share.index],
+        fig.add_trace(go.Bar(name=r, y=[f'{_school_label(s)} · N={tot[s]}' for s in share.index],
                              x=share[r].round(1), orientation='h',
                              marker=dict(color=col, cornerradius=3),
                              texttemplate='%{value:.0f}%', textposition='auto',
@@ -564,7 +567,8 @@ def fig_risk_by_school(df, year: int, district: str | None = None,
                              outsidetextfont=dict(color=INK),
                              hovertemplate='%{y} · ' + r + ': %{value:.1f}%<extra></extra>'))
     fig.update_layout(barmode='stack')
-    return _style(fig, 'Группы риска ухода по школам', 'Доля педагогов с прогнозом по уровню риска ухода',
+    return _style(fig, 'Группы риска ухода по школам',
+                  f'Доля педагогов с прогнозом · группы от {MIN_GROUP} человек после фильтров',
                   legend=True, horizontal=True)
 
 
@@ -579,13 +583,17 @@ def fig_forecast_by_subject(df, year: int, school_num: int | None = None,
     d = forecast_rows(d)
     if d.empty:
         return _empty_fig('Прогноз ухода по предметам', 'Нет прогноза для выбранного года и группы')
-    g = d.groupby('speciality')['prob_leave'].mean().to_frame() * 100
-    g = g.sort_values('prob_leave', ascending=False).head(top_n)
+    g = d.groupby('speciality').agg(prob_leave=('prob_leave', 'mean'), n=('id', 'nunique'))
+    g = g[g['n'] >= MIN_GROUP].sort_values('prob_leave', ascending=False).head(top_n)
+    if g.empty:
+        return _empty_fig('Прогноз ухода по предметам', f'Нет групп от {MIN_GROUP} педагогов')
+    g['prob_leave'] *= 100
     g['prob_remain'] = 100 - g['prob_leave']
     fig = go.Figure()
     for col, name, color in (('prob_remain', 'Останутся в системе', BLUE_MAIN),
                              ('prob_leave', 'Уйдут из системы', ORANGE)):
-        fig.add_trace(go.Bar(name=name, y=[subject_label(s) for s in g.index], x=g[col].round(1), orientation='h',
+        fig.add_trace(go.Bar(name=name, y=[f'{subject_label(s)} · N={int(g.loc[s, "n"])}' for s in g.index],
+                             x=g[col].round(1), orientation='h',
                              marker=dict(color=color, cornerradius=3),
                              texttemplate='%{value:.0f}%', textposition='auto',
                              insidetextfont=dict(color='white'),
@@ -593,7 +601,8 @@ def fig_forecast_by_subject(df, year: int, school_num: int | None = None,
                              hovertemplate='%{y} · ' + name +
                                            ': %{value:.1f}%<extra></extra>'))
     fig.update_layout(barmode='stack')
-    return _style(fig, 'Прогноз ухода по предметам', 'Средние вероятности для педагогов с прогнозом, %',
+    return _style(fig, 'Прогноз ухода по предметам',
+                  f'Средние оценки, % · группы от {MIN_GROUP} человек после фильтров',
                   legend=True, horizontal=True)
 
 

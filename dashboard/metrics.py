@@ -109,22 +109,35 @@ def tile_level(delta: float) -> int:
     return 3 if delta >= 2.5 else 2
 
 
-def school_summary(part: pd.DataFrame, mob_part: pd.DataFrame) -> pd.DataFrame:
-    """Агрегат по школам для выгрузки CSV (без строк по отдельным педагогам)."""
+def school_summary(part: pd.DataFrame, mob_part: pd.DataFrame,
+                   year: int, mob_year: int) -> pd.DataFrame:
+    """CSV: годы и знаменатели указаны явно, доли малых групп не публикуются."""
+    columns = ['school_num', 'district', 'snapshot_year', 'mobility_year',
+               'teachers', 'experience_known_n', 'mobility_teachers', 'age_mean',
+               'exp_ped_median', 'cat_high_pct', 'pk_recent_pct',
+               'students_per_teacher', 'staff_complete', 'moved_pct', 'left_pct']
     if part.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=columns)
     g = part.groupby(['school_num', 'district']).agg(
         teachers=('id', 'nunique'), age_mean=('age', 'mean'),
         exp_ped_median=('experience_age_pedagogic_clean', 'median'),
+        experience_known_n=('experience_age_pedagogic_clean', 'count'),
         cat_high_pct=('category_qual_cat', lambda s: (s == 'высшая').mean() * 100),
         pk_recent_pct=('pk_recent', lambda s: s.mean() * 100),
         students_per_teacher=('students_per_teacher', 'first'),
         staff_complete=('school_staff_complete', 'first'))
+    g = g[g['teachers'] >= MIN_GROUP]
+    if g.empty:
+        return pd.DataFrame(columns=columns)
     mob = mob_part[mob_part['movement_type'].notna()]
+    mob_n = mob.groupby(['school_num', 'district'])['id'].nunique()
+    g['mobility_teachers'] = mob_n.reindex(g.index).fillna(0).astype(int)
     for col, status in (('moved_pct', MOVED), ('left_pct', LEFT)):
         g[col] = (mob['movement_type'] == status).groupby(
-            [mob['school_num'], mob['district']]).mean() * 100
-    return g.round(1).reset_index()
+            [mob['school_num'], mob['district']]).mean().where(mob_n >= MIN_GROUP) * 100
+    g['snapshot_year'] = year
+    g['mobility_year'] = mob_year
+    return g.round(1).reset_index()[columns]
 
 
 SUBJECT_TABLE_COLS = ['Предмет', 'Педагогов', 'Ср. возраст', 'Стаж, медиана',
@@ -152,7 +165,7 @@ def subject_table(part: pd.DataFrame, mob_part: pd.DataFrame) -> pd.DataFrame:
         [subject_label(s) for s in g.index],
         g['n'].astype(int).values,
         g['age'].round(1).values,
-        g['exp'].round(0).astype(int).values,
+        g['exp'].round(0).astype('Int64').values,
         g['high'].round(0).astype(int).values,
         g['pk'].round(0).astype(int).values,
         [f'{int(moved.get(s, 0))} / {int(left.get(s, 0))}' for s in g.index],

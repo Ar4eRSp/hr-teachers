@@ -52,11 +52,11 @@
   "evaluation_previously_explored": true,
   "evaluation_note": "Ретроспективная проверка: рецепт выбран внутри 2022; 2023 изучался ранее",
   "selection": "3-fold OOF 2022; highest AP among models beating constant Brier",
-  "selected_model": "CatBoost depth=6, trees=300, weights=None",
+  "selected_model": "CatBoost depth=4, trees=300, weights=None",
   "model_params": {
     "iterations": 300,
     "learning_rate": 0.06,
-    "depth": 6,
+    "depth": 4,
     "l2_leaf_reg": 5,
     "rsm": 0.8,
     "border_count": 64,
@@ -74,40 +74,41 @@
       "district"
     ]
   },
-  "evaluation_threshold": 0.1301305963295526,
+  "numeric_missing_policy": "CatBoost native NaN; comparison models use train-fold medians",
+  "evaluation_threshold": 0.13197483116683667,
   "threshold_source": "OOF 2022, recall >= 0.70",
   "dashboard_thresholds": [
     0.25,
     0.5
   ],
   "metrics": {
-    "ap": 0.2930949895258622,
-    "roc_auc": 0.723151172053578,
-    "brier": 0.10550635244035321,
-    "logloss": 0.3541740959481732
+    "ap": 0.29673075356969514,
+    "roc_auc": 0.7232910142390927,
+    "brier": 0.10539108068824815,
+    "logloss": 0.35424976739095226
   },
   "threshold_metrics": {
-    "threshold": 0.1301305963295526,
-    "precision": 0.217828418230563,
-    "recall": 0.7068290561113527,
-    "F1": 0.33302592478737575,
-    "balanced_accuracy": 0.6601386088771404,
-    "flagged": 7460.0
+    "threshold": 0.13197483116683667,
+    "precision": 0.21787783043707215,
+    "recall": 0.7198782079164854,
+    "F1": 0.33451237998989386,
+    "balanced_accuracy": 0.6631520883901738,
+    "flagged": 7596.0
   },
   "top_groups_2023": [
     {
       "share": 0.1,
       "people": 1740,
-      "precision": 0.35919540229885055,
-      "recall": 0.27185732927359724,
-      "lift": 2.717635853669511
+      "precision": 0.3586206896551724,
+      "recall": 0.2714223575467595,
+      "lift": 2.7132876363036402
     },
     {
       "share": 0.2,
       "people": 3479,
-      "precision": 0.29663696464501293,
-      "recall": 0.4488908220965637,
-      "lift": 2.244325081790063
+      "precision": 0.29203794193733834,
+      "recall": 0.44193127446715963,
+      "lift": 2.2095293440878914
     }
   ],
   "versions": {

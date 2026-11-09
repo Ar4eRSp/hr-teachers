@@ -117,6 +117,19 @@ def test_forecast_charts_with_predictions(df_forecast):
     assert _has_data(ch.fig_risk_groups_table(groups))
 
 
+def test_forecast_rankings_hide_small_groups_and_show_denominators():
+    frame = pd.DataFrame({'id': list('abcdefghi'), 'year': [2024] * 9,
+                          'school_num': [1] * 5 + [2] * 4, 'district': ['округ'] * 9,
+                          'speciality': ['математики'] * 5 + ['химии'] * 4,
+                          'prob_leave': [0.2] * 5 + [0.9] * 4})
+    schools = ch.fig_risk_by_school(frame, 2024)
+    assert list(schools.data[0].y) == ['Школа № 1 · N=5']
+    subjects = ch.fig_forecast_by_subject(frame, 2024)
+    assert list(subjects.data[0].y) == ['Математики · N=5']
+    assert not ch.fig_risk_by_school(frame.iloc[:4], 2024).data
+    assert not ch.fig_forecast_by_subject(frame.iloc[:4], 2024).data
+
+
 def test_shap_charts_with_input():
     shap = pd.DataFrame({'feature': ['стаж', 'возраст'], 'mean_abs_shap': [0.4, 0.3]})
     assert _has_data(ch.fig_shap_importance(shap))
