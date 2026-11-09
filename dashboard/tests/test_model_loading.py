@@ -204,6 +204,29 @@ def test_project_model_matches_direct_and_saved_predictions():
                                rtol=0, atol=1e-12)
 
 
+def test_saved_metrics_belong_to_separate_temporal_evaluation_model():
+    from catboost import CatBoostClassifier
+    from sklearn.metrics import average_precision_score, roc_auc_score, brier_score_loss, log_loss
+
+    meta = json.loads((data.MODEL_DIR / 'metadata.json').read_text(encoding='utf-8'))
+    assert meta['evaluation_training_years'] == [2022]
+    assert meta['evaluation_year'] == 2023
+    assert meta['training_years'] == [2022, 2023]
+    assert meta['evaluation_used_for_selection'] is False
+    assert meta['evaluation_previously_explored'] is True
+    assert meta['threshold_source'].startswith('OOF 2022')
+
+    model = CatBoostClassifier().load_model(str(data.MODEL_DIR / meta['evaluation_model_file']))
+    assert list(model.feature_names_) == meta['features']
+    source = data.load_data()
+    test = source[source['year'].eq(2023)]
+    probability = model.predict_proba(test[meta['features']])[:, 1]
+    scores = {'ap': average_precision_score, 'roc_auc': roc_auc_score,
+              'brier': brier_score_loss, 'logloss': log_loss}
+    for name, score in scores.items():
+        assert score(test['target'], probability) == pytest.approx(meta['metrics'][name], abs=1e-12)
+
+
 @pytest.mark.parametrize('missing', ['catboost_churn.cbm', 'metadata.json'])
 def test_incomplete_artifacts_keep_forecast_unavailable(tmp_path, native_model, missing):
     write_artifact(tmp_path, native_model)

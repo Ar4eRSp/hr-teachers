@@ -15,36 +15,105 @@
     "class_manager",
     "edu_higher",
     "edu_pedagogical",
-    "edu_speciality_match",
     "pk_recent",
     "pk_this_year",
-    "pk_hours_3y",
     "retraining",
     "main_position_cat",
     "academic_degree_cat",
     "category_qual_cat",
-    "district",
-    "speciality"
+    "district"
   ],
   "categorical_features": [
     "main_position_cat",
     "academic_degree_cat",
     "category_qual_cat",
-    "district",
-    "speciality"
+    "district"
+  ],
+  "excluded_features": [
+    "pk_hours_3y",
+    "speciality",
+    "edu_speciality_match"
   ],
   "classes": [
     0,
     1
   ],
   "training_years": [
+    2022,
+    2023
+  ],
+  "forecast_year": 2024,
+  "evaluation_training_years": [
     2022
   ],
   "evaluation_year": 2023,
-  "evaluation_used_for_selection": true,
-  "forecast_year": 2024,
-  "evaluation_threshold": 0.392901442416018,
+  "evaluation_model_file": "evaluation_2023.cbm",
+  "evaluation_used_for_selection": false,
+  "evaluation_previously_explored": true,
+  "evaluation_note": "Ретроспективная проверка: рецепт выбран внутри 2022; 2023 изучался ранее",
+  "selection": "3-fold OOF 2022; highest AP among models beating constant Brier",
+  "selected_model": "CatBoost depth=6, trees=300, weights=None",
+  "model_params": {
+    "iterations": 300,
+    "learning_rate": 0.06,
+    "depth": 6,
+    "l2_leaf_reg": 5,
+    "rsm": 0.8,
+    "border_count": 64,
+    "thread_count": 4,
+    "random_seed": 42,
+    "verbose": false,
+    "auto_class_weights": "None",
+    "allow_writing_files": false,
+    "bootstrap_type": "Bernoulli",
+    "subsample": 0.8,
+    "cat_features": [
+      "main_position_cat",
+      "academic_degree_cat",
+      "category_qual_cat",
+      "district"
+    ]
+  },
+  "evaluation_threshold": 0.1301305963295526,
+  "threshold_source": "OOF 2022, recall >= 0.70",
+  "dashboard_thresholds": [
+    0.25,
+    0.5
+  ],
   "metrics": {
-    "roc_auc": 0.7194915887936645
+    "ap": 0.2930949895258622,
+    "roc_auc": 0.723151172053578,
+    "brier": 0.10550635244035321,
+    "logloss": 0.3541740959481732
+  },
+  "threshold_metrics": {
+    "threshold": 0.1301305963295526,
+    "precision": 0.217828418230563,
+    "recall": 0.7068290561113527,
+    "F1": 0.33302592478737575,
+    "balanced_accuracy": 0.6601386088771404,
+    "flagged": 7460.0
+  },
+  "top_groups_2023": [
+    {
+      "share": 0.1,
+      "people": 1740,
+      "precision": 0.35919540229885055,
+      "recall": 0.27185732927359724,
+      "lift": 2.717635853669511
+    },
+    {
+      "share": 0.2,
+      "people": 3479,
+      "precision": 0.29663696464501293,
+      "recall": 0.4488908220965637,
+      "lift": 2.244325081790063
+    }
+  ],
+  "versions": {
+    "catboost": "1.2.10",
+    "scikit-learn": "1.9.1",
+    "pandas": "3.0.6",
+    "numpy": "2.5.4"
   }
 }
